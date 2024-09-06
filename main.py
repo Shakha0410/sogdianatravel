@@ -28,6 +28,8 @@ amadeus = Client(client_id=AMADEUS_API_KEY, client_secret=AMADEUS_API_SECRET)
 
 translations = {
     'uz': {
+        
+        'go_back_to_main_menu': 'Biz bilan bron qiling',
         'contact_agents_button': 'asasdasdasd',
         'invalid_city_message': 'Shahar nomi notogri.',
         'enter_year_message': "Iltimos, jo'nab ketish yilini kiriting (masalan, 2024):",
@@ -76,6 +78,7 @@ translations = {
         'thank_you_contact_message': 'Ma\'lumotlaringiz uchun rahmat!',
     },
     'ru': {
+        'go_back_to_main_menu': 'Забронируйте у нас',
         'contact_agents_button': 'asasdasdasd',
         'invalid_city_message': 'Shahar nomi notogri.',
         'enter_year_message': "Пожалуйста, введите год вылета (например, 2024):",
@@ -236,13 +239,34 @@ async def get_hotel_search_details(update: Update, context: ContextTypes.DEFAULT
             hotels = hotel_response.data[:10]
 
             if hotels:
-                keyboard = [
-                    [InlineKeyboardButton(f"{hotel['name']} - {hotel.get('address', 'N/A')}", callback_data=f'hotel_{i}')]
-                    for i, hotel in enumerate(hotels)
-                ]
+                # Prepare a detailed message with hotel information
+                hotel_info_list = []
+                for i, hotel in enumerate(hotels):
+                    hotel_name = hotel.get('name', 'N/A')
+                    hotel_address = hotel.get('address', 'N/A')
+                    hotel_rating = hotel.get('rating', 'N/A')
+                    hotel_price = hotel.get('price', {}).get('total', 'N/A')  # Assuming 'price' is a dict with 'total'
+                    hotel_picture = hotel.get('media', [{}])[0].get('url', 'No image available')  # Assuming 'media' is a list of dicts
+                    hotel_info = f"Hotel {i+1}:\n" \
+                                 f"Name: {hotel_name}\n" \
+                                 f"Address: {hotel_address}\n" \
+                                 f"Rating: {hotel_rating}\n" \
+                                 f"Price: {hotel_price}\n" \
+                                 f"Picture: {hotel_picture}\n"
+                                 
+                    hotel_info_list.append(hotel_info)
 
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await context.bot.send_message(chat_id=update.effective_chat.id, text="Here are the top 10 hotels:", reply_markup=reply_markup)
+                # Combine all hotel info into one message
+                hotel_message = "\n\n".join(hotel_info_list)
+                
+                
+                main_menu_button = [[InlineKeyboardButton(translations[language]['go_back_to_main_menu'], callback_data='contact_agents')]]
+                reply_markup = InlineKeyboardMarkup(main_menu_button)
+
+                # Send the hotel information as a message
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Here are the top 10 hotels:\n\n{hotel_message}")
+
+                # Save hotels for later use and update state
                 context.user_data['hotels'] = hotels  # Save hotels for later use
                 context.user_data['state'] = 'viewing_hotels'  # Update state to viewing hotels
             else:
@@ -252,7 +276,7 @@ async def get_hotel_search_details(update: Update, context: ContextTypes.DEFAULT
 
     except ResponseError as e:
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Error occurred: {e}")
-
+        
 async def handle_location_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     language = context.user_data.get('language', 'uz')
     query = update.callback_query
@@ -454,7 +478,6 @@ async def get_search_details(update: Update, context: ContextTypes.DEFAULT_TYPE)
             {'code': 'CAI', 'name': 'Cairo International Airport, Egypt'},
             {'code': 'YYZ', 'name': 'Toronto Pearson International Airport, Canada'},
             {'code': 'YVR', 'name': 'Vancouver International Airport, Canada'},
-            # Add more popular airports as needed
         ]
 
         # Create a custom keyboard with popular airports
@@ -543,16 +566,23 @@ async def get_search_details(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     )
                     flight_details.append(flight_info)
 
+                # Create a "Go back to main menu" button
+                main_menu_button = [[InlineKeyboardButton(translations[language]['go_back_to_main_menu'], callback_data='contact_agents')]]
+                reply_markup = InlineKeyboardMarkup(main_menu_button)
+
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
-                    text="\n\n".join(flight_details)
+                    text="\n\n".join(flight_details),
+                    reply_markup=reply_markup
                 )
             else:
+                main_menu_button = [[InlineKeyboardButton(translations[language]['go_back_to_main_menu'], callback_data='contact_agents')]]
+                reply_markup = InlineKeyboardMarkup(main_menu_button)
+                
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
                     text=translations[language]['no_flights_found_message']
                 )
-                
 
         except ResponseError as e:
             logging.error(f"Amadeus API Error: {e}")
@@ -688,6 +718,7 @@ app.add_handler(CallbackQueryHandler(search_flights, pattern='^search$'))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
 
 app.add_handler(CallbackQueryHandler(handle_flight_selection, pattern='^flight_'))
+app.add_handler(CallbackQueryHandler(handle_flight_selection, pattern='^showm_main_menu'))
 app.add_handler(CallbackQueryHandler(search_flights, pattern='^search_flights$'))
 app.add_handler(CallbackQueryHandler(handle_language_selection, pattern='^lang_'))
 app.add_handler(CallbackQueryHandler(handle_country_selection, pattern='^country_'))
