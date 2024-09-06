@@ -699,7 +699,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_state = context.user_data.get('state', None)
 
     if current_state == 'getting_user_info':
-        await get_user_info(update, context)
+        await get_user_info(update, context)  
     elif current_state == 'getting_city':
         await get_hotel_search_details(update, context)
     elif current_state in ['getting_check_in_date', 'getting_nights', 'getting_guests']:
@@ -718,7 +718,6 @@ app.add_handler(CallbackQueryHandler(search_flights, pattern='^search$'))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
 
 app.add_handler(CallbackQueryHandler(handle_flight_selection, pattern='^flight_'))
-app.add_handler(CallbackQueryHandler(handle_flight_selection, pattern='^showm_main_menu'))
 app.add_handler(CallbackQueryHandler(search_flights, pattern='^search_flights$'))
 app.add_handler(CallbackQueryHandler(handle_language_selection, pattern='^lang_'))
 app.add_handler(CallbackQueryHandler(handle_country_selection, pattern='^country_'))
